@@ -17,3 +17,6 @@ It then tweets the weather and news headlines using the [Tweepy API](https://www
 
 ## Usage
 Run the script using `python main.py`.
+
+## Example Account
+https://twitter.com/jinbujiuya46637
