@@ -3,6 +3,8 @@ import requests
 import tweepy
 import os
 from dotenv import load_dotenv
+import asyncio
+
 
 # 実行前に下記の項目を .env に記載する
 # NEWS_API_KEY=
@@ -14,7 +16,7 @@ from dotenv import load_dotenv
 # TWITTER_ACCESS_TOKEN_SECRET=
 
 # 天気を取得する
-def fetch_weather():
+async def fetch_weather():
     meteo_url = "https://api.open-meteo.com/v1/forecast?latitude=35.6895&longitude=139.6917&daily=temperature_2m_max," \
                 "temperature_2m_min,apparent_temperature_max,apparent_temperature_min,sunrise," \
                 "sunset&timezone=Asia%2FTokyo"
@@ -22,7 +24,7 @@ def fetch_weather():
 
 
 # ニュースを取得する
-def fetch_news():
+async def fetch_news():
     news_api_key = os.environ.get("NEWS_API_KEY")
     news_api_url = "https://newsapi.org/v2/top-headlines?country=jp&category=business&pageSize=3&apiKey=" + news_api_key
     return requests.get(news_api_url).json()
@@ -80,24 +82,26 @@ def tweet(text):
     client.create_tweet(text=text)
 
 
-def main():
+async def main():
     # 0. 環境変数を読み込む
     load_dotenv()
-    # 1. 天気を取得する
-    weather = fetch_weather()
-    # 2. ニュースを取得する
-    news = fetch_news()
-    # 3. ツイートの文章を生成するプロンプトを作成する
+
+    # 1. 天気とニュースを非同期で取得する
+    [weather, news] = await asyncio.gather(fetch_weather(), fetch_news())
+    # 2. ツイートの文章を生成するプロンプトを作成する
     prompt = create_prompt(
         weather["daily"]["temperature_2m_max"][0],
         weather["daily"]["temperature_2m_min"][0],
         news["articles"][0]["title"],
     )
-    # 4. chatgptでプロンプトから文章を生成する
+    # 3. chatgptでプロンプトから文章を生成する
     text = execute_prompt(prompt)
-    # 5. ツイートする（chatgptが140文字以内に収めないケースがあるため、念のため切り捨てる）
+    # 4. ツイートする（chatgptが140文字以内に収めないケースがあるため、念のため切り捨てる）
     tweet(text[0:140])
 
 
 if __name__ == "__main__":
-    main()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(main())
+    loop.close()
